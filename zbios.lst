@@ -1,0 +1,1747 @@
+ AS V1.42 Beta [Bld 200] - Source File zbios.asm - Page 1 - 05/24/21 12:51:08
+
+
+       1/       0 :                             cpu     z8001
+       2/       0 :                             supmode on
+       3/       0 :                             include bitfuncs.inc
+(1)    1/       0 : =>UNDEFINED         		ifndef   bitfuncsinc    ; avoid multiple inclusion
+(1)    2/       0 : =1H                 bitfuncsinc     equ      1
+(1)    3/       0 :                     
+(1)    4/       0 :                                     save
+(1)   77/       0 : ALL                                 restore                 ; allow listing again
+(1)   78/       0 :                     
+(1)   79/       0 : [1]                                 endif			; bitfuncsinc
+(1)   80/       0 :                     
+(1)   81/       0 :                     
+       4/       0 :                             include z8k_fcw.inc
+(1)    1/       0 :                     ; z8k_fcw.inc
+(1)    2/       0 :                     
+(1)    3/       0 : =8000H              fcw_segmented   equ     1000000000000000b       ; segmented mode
+(1)    4/       0 : =4000H              fcw_system      equ     0100000000000000b       ; system mode
+(1)    5/       0 : =2000H              fcw_epa         equ     0010000000000000b       ; epu connected
+(1)    6/       0 : =1000H              fcw_vie         equ     0001000000000000b       ; vectored interrupt enable
+(1)    7/       0 : =800H               fcw_nvie        equ     0000100000000000b       ; non vectored interrupt enable
+(1)    8/       0 : =80H                fcw_c           equ     0000000010000000b       ; carry flag
+(1)    9/       0 : =40H                fcw_z           equ     0000000001000000b       ; zero flag
+(1)   10/       0 : =20H                fcw_s           equ     0000000000100000b       ; sign flag
+(1)   11/       0 : =10H                fcw_pv          equ     0000000000010000b       ; parity/overflow flag
+(1)   12/       0 : =8H                 fcw_da          equ     0000000000001000b       ; decimal adjust
+(1)   13/       0 : =4H                 fcw_h           equ     0000000000000100b       ; half carry
+(1)   14/       0 :                     
+       5/       0 :                             include z8k_hostcomm.inc
+(1)    1/       0 :                     ; z8k_hostcomm.inc
+(1)    2/       0 :                     
+(1)    3/       0 :                     
+(1)    4/       0 : =0H                 hc_nop                  equ     0
+(1)    5/       0 : =1H                 hc_reset                equ     1
+(1)    6/       0 : =2H                 hc_epu_trap             equ     2
+(1)    7/       0 : =3H                 hc_priv_trap            equ     3
+(1)    8/       0 : =4H                 hc_seg_trap             equ     4
+(1)    9/       0 : =5H                 hc_vi_trap              equ     5
+(1)   10/       0 : =6H                 hc_nvi_trap             equ     6
+(1)   11/       0 : =7H                 hc_exit                 equ     7
+(1)   12/       0 : =8H                 hc_breakpoint           equ     8
+(1)   13/       0 : =9H                 hc_sysstack_overrun     equ     9
+(1)   14/       0 : =0AH                hc_sysstack_underrun    equ     10
+(1)   15/       0 : =0BH                hc_termin               equ     11
+(1)   16/       0 : =0CH                hc_terminnowait         equ     12
+(1)   17/       0 : =0DH                hc_termout              equ     13
+(1)   18/       0 : =0EH                hc_termoutnowait        equ     14
+(1)   19/       0 : =0FH                hc_termreadline         equ     15
+(1)   20/       0 : =10H                hc_terminstat           equ     16
+(1)   21/       0 : =11H                hc_termoutstat          equ     17
+(1)   22/       0 :                     
+(1)   23/       0 : =100H               hc_maxpayload           equ     256
+(1)   24/       0 :                     
+(1)   25/       0 : =0H                 hc_msg_nop              equ     0
+(1)   26/       0 : =1H                 hc_msg_cont             equ     1
+(1)   27/       0 : =2H                 hc_msg_breakpoint       equ     2
+(1)   28/       0 :                     
+       6/       0 :                             include z8k_errno.inc
+(1)    1/       0 :                     ; z8k_errno.inc
+(1)    2/       0 :                     
+(1)    3/       0 : =0FFFFFFFFFFFFFFFFH ENOSYS  equ     -1      ; not implemented
+ AS V1.42 Beta [Bld 200] - Source File zbios.asm(z8k_errno.inc) - Page 2 - 05/24/21 12:51:08
+
+
+(1)    4/       0 : =0FFFFFFFFFFFFFFFEH EINVAL  equ     -2      ; invalid argument
+(1)    5/       0 : =0FFFFFFFFFFFFFFFDH EIO     equ     -3      ; i/o error
+(1)    6/       0 :                     
+       7/       0 :                             include z8k_sc.inc
+(1)    1/       0 :                     ; z8k_sc.inc
+(1)    2/       0 :                     
+(1)    3/       0 :                     
+(1)    4/       0 : =0H                 sys_exit                equ     0
+(1)    5/       0 : =1H                 sys_breakpoint          equ     1
+(1)    6/       0 : =2H                 sys_termin              equ     2
+(1)    7/       0 : =3H                 sys_terminnowait        equ     3
+(1)    8/       0 : =4H                 sys_termout             equ     4
+(1)    9/       0 : =5H                 sys_termoutnowait       equ     5
+(1)   10/       0 : =6H                 sys_termreadline        equ     6
+(1)   11/       0 : =7H                 sys_terminstat          equ     7
+(1)   12/       0 : =8H                 sys_termoutstat         equ     8
+(1)   13/       0 :                     
+       8/       0 :                     
+       9/       0 :                     
+      10/       0 : =RR14               SP      reg     rr14
+      11/       0 : =R14                SPSEG   reg     r14
+      12/       0 : =R15                SPOFF   reg     r15
+      13/       0 :                     
+      14/       0 :                     
+      15/       0 :                             org     0
+      16/       0 :                     
+      17/       0 :                     ;******************************************
+      18/       0 :                     ; RESET-Vektor                            *
+      19/       0 :                     ;******************************************
+      20/       0 :                     
+      21/       0 :                     reset_trap:
+      22/       0 : 00 00                               dw      0
+      23/       2 : C0 00               reset_fcw       dw      fcw_segmented+fcw_system
+      24/       4 : 00 00 05 84         reset_pc        dd      reset_handler
+      25/       8 :                     
+      26/       8 :                     
+      27/       8 :                     ;******************************************
+      28/       8 :                     ; FCW/PC nach TRAP                        *
+      29/       8 :                     ;******************************************
+      30/       8 :                     
+      31/       8 :                     trap_exit:
+      32/       8 : 00 00                               dw      0
+      33/       A : C0 00               trap_fcw        dw      fcw_segmented+fcw_system
+      34/       C : 00 00 05 84         trap_pc         dd      reset_handler
+      35/      10 :                     
+      36/      10 :                     
+      37/      10 :                     ;******************************************
+      38/      10 :                     ; Register nach TRAP                      *
+      39/      10 :                     ;******************************************
+      40/      10 :                     
+      41/      10 :                     reg_save_area:
+      42/      10 : 00 00               save_r0         dw      0
+      43/      12 : 00 00               save_r1         dw      0
+      44/      14 : 00 00               save_r2         dw      0
+      45/      16 : 00 00               save_r3         dw      0
+      46/      18 : 00 00               save_r4         dw      0
+      47/      1A : 00 00               save_r5         dw      0
+      48/      1C : 00 00               save_r6         dw      0
+      49/      1E : 00 00               save_r7         dw      0
+      50/      20 : 00 00               save_r8         dw      0
+ AS V1.42 Beta [Bld 200] - Source File zbios.asm - Page 3 - 05/24/21 12:51:08
+
+
+      51/      22 : 00 00               save_r9         dw      0
+      52/      24 : 00 00               save_r10        dw      0
+      53/      26 : 00 00               save_r11        dw      0
+      54/      28 : 00 00               save_r12        dw      0
+      55/      2A : 00 00               save_r13        dw      0
+      56/      2C : 00 00               save_r14        dw      0
+      57/      2E : 00 00               save_r15        dw      0
+      58/      30 : 00 00               save_nspseg     dw      0
+      59/      32 : 00 00               save_nspoff     dw      0
+      60/      34 :                     
+      61/      34 :                     
+      62/      34 :                     ;******************************************
+      63/      34 :                     ; TRAP-Info/-Steuerung                    *
+      64/      34 :                     ;******************************************
+      65/      34 :                     
+      66/      34 : 00 00               trap_reason     dw      0
+      67/      36 : 00 00               trap_code       dw      0
+      68/      38 : 00 00               rc_halted       dw      0
+      69/      3A : 00 00               rc_cont         dw      0
+      70/      3C :                     
+      71/      3C : 00 00               last_sc_code    dw      0
+      72/      3E : 00 00               exit_code       dw      0
+      73/      40 :                     
+      74/      40 : 00 00               pc_hist1        dw      0
+      75/      42 : 00 00               pc_hist2        dw      0
+      76/      44 : 00 00               pc_hist3        dw      0
+      77/      46 : 00 00               pc_hist4        dw      0
+      78/      48 : 00 00               pc_hist5        dw      0
+      79/      4A : 00 00               pc_hist6        dw      0
+      80/      4C : 00 00               pc_hist7        dw      0
+      81/      4E : 00 00               pc_hist8        dw      0
+      82/      50 :                     
+      83/      50 : 00 00               pc_ihist1       dw      0
+      84/      52 : 00 00               pc_ihist2       dw      0
+      85/      54 : 00 00               pc_ihist3       dw      0
+      86/      56 : 00 00               pc_ihist4       dw      0
+      87/      58 : 00 00               pc_ihist5       dw      0
+      88/      5A : 00 00               pc_ihist6       dw      0
+      89/      5C : 00 00               pc_ihist7       dw      0
+      90/      5E : 00 00               pc_ihist8       dw      0
+      91/      60 :                     
+      92/      60 : 00 00               nmi_count       dw      0
+      93/      62 : 00 00               deferred_break  dw      0
+      94/      64 :                     
+      95/      64 :                     
+      96/      64 :                     ;******************************************
+      97/      64 :                     ; Kommunikation mit Atmega                *
+      98/      64 :                     ;******************************************
+      99/      64 :                     
+     100/      F8 :                             org     100h-8
+     101/      F8 :                     
+     102/      F8 :                     hostcomm_area:
+     103/      F8 : 00 00               host_sema       dw      0
+     104/      FA : 00 00               host_message    dw      0       ; von Host via NMI
+     105/      FC : 00 00               host_command    dw      0       ; zu Host via MO
+     106/      FE : 00 00               host_size       dw      0
+     107/     100 : 00 00 00 00 00 00   host_payload:   db      hc_maxpayload dup (0)
+              106 : 00 00 00 00 00 00 
+              10C : 00 00 00 00 00 00 
+              112 : 00 00 00 00 00 00 
+ AS V1.42 Beta [Bld 200] - Source File zbios.asm - Page 4 - 05/24/21 12:51:08
+
+
+              118 : 00 00 00 00 00 00 
+              11E : 00 00 00 00 00 00 
+              124 : 00 00 00 00 00 00 
+              12A : 00 00 00 00 00 00 
+              130 : 00 00 00 00 00 00 
+              136 : 00 00 00 00 00 00 
+              13C : 00 00 00 00 00 00 
+              142 : 00 00 00 00 00 00 
+              148 : 00 00 00 00 00 00 
+              14E : 00 00 00 00 00 00 
+              154 : 00 00 00 00 00 00 
+              15A : 00 00 00 00 00 00 
+              160 : 00 00 00 00 00 00 
+              166 : 00 00 00 00 00 00 
+              16C : 00 00 00 00 00 00 
+              172 : 00 00 00 00 00 00 
+              178 : 00 00 00 00 00 00 
+              17E : 00 00 00 00 00 00 
+              184 : 00 00 00 00 00 00 
+              18A : 00 00 00 00 00 00 
+              190 : 00 00 00 00 00 00 
+              196 : 00 00 00 00 00 00 
+              19C : 00 00 00 00 00 00 
+              1A2 : 00 00 00 00 00 00 
+              1A8 : 00 00 00 00 00 00 
+              1AE : 00 00 00 00 00 00 
+              1B4 : 00 00 00 00 00 00 
+              1BA : 00 00 00 00 00 00 
+              1C0 : 00 00 00 00 00 00 
+              1C6 : 00 00 00 00 00 00 
+              1CC : 00 00 00 00 00 00 
+              1D2 : 00 00 00 00 00 00 
+              1D8 : 00 00 00 00 00 00 
+              1DE : 00 00 00 00 00 00 
+              1E4 : 00 00 00 00 00 00 
+              1EA : 00 00 00 00 00 00 
+              1F0 : 00 00 00 00 00 00 
+              1F6 : 00 00 00 00 00 00 
+              1FC : 00 00 00 00       
+     108/     200 :                     
+     109/     200 :                     
+     110/     200 :                     ;******************************************
+     111/     200 :                     ; PSA                                     *
+     112/     200 :                     ;******************************************
+     113/     200 :                     
+     114/     200 :                             org     200h
+     115/     200 :                     
+     116/     200 :                     psa:
+     117/     200 : 00 00                       dw      0
+     118/     202 : 00 00                       dw      0
+     119/     204 : 00 00 00 00                 dd      0
+     120/     208 :                     
+     121/     208 :                     epu_trap:
+     122/     208 : 00 00                       dw      0
+     123/     20A : C0 00                       dw      fcw_segmented+fcw_system
+     124/     20C : 00 00 06 54                 dd      epu_handler
+     125/     210 :                     
+     126/     210 :                     priv_trap:
+     127/     210 : 00 00                       dw      0
+     128/     212 : C0 00                       dw      fcw_segmented+fcw_system
+ AS V1.42 Beta [Bld 200] - Source File zbios.asm - Page 5 - 05/24/21 12:51:08
+
+
+     129/     214 : 00 00 06 5C                 dd      priv_handler
+     130/     218 :                     
+     131/     218 :                     sc_trap:
+     132/     218 : 00 00                       dw      0
+     133/     21A : C0 00                       dw      fcw_segmented+fcw_system
+     134/     21C : 00 00 08 2A                 dd      sc_handler
+     135/     220 :                     
+     136/     220 :                     seg_trap:
+     137/     220 : 00 00                       dw      0
+     138/     222 : C0 00                       dw      fcw_segmented+fcw_system
+     139/     224 : 00 00 06 64                 dd      seg_handler
+     140/     228 :                     
+     141/     228 :                     nmi_trap:
+     142/     228 : 00 00                       dw      0
+     143/     22A : C0 00                       dw      fcw_segmented+fcw_system
+     144/     22C : 00 00 06 7C                 dd      nmi_handler
+     145/     230 :                     
+     146/     230 :                     nvi_trap:
+     147/     230 : 00 00                       dw      0
+     148/     232 : C0 00                       dw      fcw_segmented+fcw_system
+     149/     234 : 00 00 06 6C                 dd      nvi_handler
+     150/     238 :                     
+     151/     238 :                     vi_trap:
+     152/     238 : 00 00                       dw      0
+     153/     23A : C0 00                       dw      fcw_segmented+fcw_system
+     154/     23C :                       rept 128
+     155/     23C :                             dd      vi_handler
+     156/     23C :                       endm
+     155/     23C : 00 00 06 74                 dd      vi_handler
+     155/     240 : 00 00 06 74                 dd      vi_handler
+     155/     244 : 00 00 06 74                 dd      vi_handler
+     155/     248 : 00 00 06 74                 dd      vi_handler
+     155/     24C : 00 00 06 74                 dd      vi_handler
+     155/     250 : 00 00 06 74                 dd      vi_handler
+     155/     254 : 00 00 06 74                 dd      vi_handler
+     155/     258 : 00 00 06 74                 dd      vi_handler
+     155/     25C : 00 00 06 74                 dd      vi_handler
+     155/     260 : 00 00 06 74                 dd      vi_handler
+     155/     264 : 00 00 06 74                 dd      vi_handler
+     155/     268 : 00 00 06 74                 dd      vi_handler
+     155/     26C : 00 00 06 74                 dd      vi_handler
+     155/     270 : 00 00 06 74                 dd      vi_handler
+     155/     274 : 00 00 06 74                 dd      vi_handler
+     155/     278 : 00 00 06 74                 dd      vi_handler
+     155/     27C : 00 00 06 74                 dd      vi_handler
+     155/     280 : 00 00 06 74                 dd      vi_handler
+     155/     284 : 00 00 06 74                 dd      vi_handler
+     155/     288 : 00 00 06 74                 dd      vi_handler
+     155/     28C : 00 00 06 74                 dd      vi_handler
+     155/     290 : 00 00 06 74                 dd      vi_handler
+     155/     294 : 00 00 06 74                 dd      vi_handler
+     155/     298 : 00 00 06 74                 dd      vi_handler
+     155/     29C : 00 00 06 74                 dd      vi_handler
+     155/     2A0 : 00 00 06 74                 dd      vi_handler
+     155/     2A4 : 00 00 06 74                 dd      vi_handler
+     155/     2A8 : 00 00 06 74                 dd      vi_handler
+     155/     2AC : 00 00 06 74                 dd      vi_handler
+     155/     2B0 : 00 00 06 74                 dd      vi_handler
+     155/     2B4 : 00 00 06 74                 dd      vi_handler
+     155/     2B8 : 00 00 06 74                 dd      vi_handler
+ AS V1.42 Beta [Bld 200] - Source File zbios.asm - Page 6 - 05/24/21 12:51:08
+
+
+     155/     2BC : 00 00 06 74                 dd      vi_handler
+     155/     2C0 : 00 00 06 74                 dd      vi_handler
+     155/     2C4 : 00 00 06 74                 dd      vi_handler
+     155/     2C8 : 00 00 06 74                 dd      vi_handler
+     155/     2CC : 00 00 06 74                 dd      vi_handler
+     155/     2D0 : 00 00 06 74                 dd      vi_handler
+     155/     2D4 : 00 00 06 74                 dd      vi_handler
+     155/     2D8 : 00 00 06 74                 dd      vi_handler
+     155/     2DC : 00 00 06 74                 dd      vi_handler
+     155/     2E0 : 00 00 06 74                 dd      vi_handler
+     155/     2E4 : 00 00 06 74                 dd      vi_handler
+     155/     2E8 : 00 00 06 74                 dd      vi_handler
+     155/     2EC : 00 00 06 74                 dd      vi_handler
+     155/     2F0 : 00 00 06 74                 dd      vi_handler
+     155/     2F4 : 00 00 06 74                 dd      vi_handler
+     155/     2F8 : 00 00 06 74                 dd      vi_handler
+     155/     2FC : 00 00 06 74                 dd      vi_handler
+     155/     300 : 00 00 06 74                 dd      vi_handler
+     155/     304 : 00 00 06 74                 dd      vi_handler
+     155/     308 : 00 00 06 74                 dd      vi_handler
+     155/     30C : 00 00 06 74                 dd      vi_handler
+     155/     310 : 00 00 06 74                 dd      vi_handler
+     155/     314 : 00 00 06 74                 dd      vi_handler
+     155/     318 : 00 00 06 74                 dd      vi_handler
+     155/     31C : 00 00 06 74                 dd      vi_handler
+     155/     320 : 00 00 06 74                 dd      vi_handler
+     155/     324 : 00 00 06 74                 dd      vi_handler
+     155/     328 : 00 00 06 74                 dd      vi_handler
+     155/     32C : 00 00 06 74                 dd      vi_handler
+     155/     330 : 00 00 06 74                 dd      vi_handler
+     155/     334 : 00 00 06 74                 dd      vi_handler
+     155/     338 : 00 00 06 74                 dd      vi_handler
+     155/     33C : 00 00 06 74                 dd      vi_handler
+     155/     340 : 00 00 06 74                 dd      vi_handler
+     155/     344 : 00 00 06 74                 dd      vi_handler
+     155/     348 : 00 00 06 74                 dd      vi_handler
+     155/     34C : 00 00 06 74                 dd      vi_handler
+     155/     350 : 00 00 06 74                 dd      vi_handler
+     155/     354 : 00 00 06 74                 dd      vi_handler
+     155/     358 : 00 00 06 74                 dd      vi_handler
+     155/     35C : 00 00 06 74                 dd      vi_handler
+     155/     360 : 00 00 06 74                 dd      vi_handler
+     155/     364 : 00 00 06 74                 dd      vi_handler
+     155/     368 : 00 00 06 74                 dd      vi_handler
+     155/     36C : 00 00 06 74                 dd      vi_handler
+     155/     370 : 00 00 06 74                 dd      vi_handler
+     155/     374 : 00 00 06 74                 dd      vi_handler
+     155/     378 : 00 00 06 74                 dd      vi_handler
+     155/     37C : 00 00 06 74                 dd      vi_handler
+     155/     380 : 00 00 06 74                 dd      vi_handler
+     155/     384 : 00 00 06 74                 dd      vi_handler
+     155/     388 : 00 00 06 74                 dd      vi_handler
+     155/     38C : 00 00 06 74                 dd      vi_handler
+     155/     390 : 00 00 06 74                 dd      vi_handler
+     155/     394 : 00 00 06 74                 dd      vi_handler
+     155/     398 : 00 00 06 74                 dd      vi_handler
+     155/     39C : 00 00 06 74                 dd      vi_handler
+     155/     3A0 : 00 00 06 74                 dd      vi_handler
+     155/     3A4 : 00 00 06 74                 dd      vi_handler
+     155/     3A8 : 00 00 06 74                 dd      vi_handler
+ AS V1.42 Beta [Bld 200] - Source File zbios.asm - Page 7 - 05/24/21 12:51:08
+
+
+     155/     3AC : 00 00 06 74                 dd      vi_handler
+     155/     3B0 : 00 00 06 74                 dd      vi_handler
+     155/     3B4 : 00 00 06 74                 dd      vi_handler
+     155/     3B8 : 00 00 06 74                 dd      vi_handler
+     155/     3BC : 00 00 06 74                 dd      vi_handler
+     155/     3C0 : 00 00 06 74                 dd      vi_handler
+     155/     3C4 : 00 00 06 74                 dd      vi_handler
+     155/     3C8 : 00 00 06 74                 dd      vi_handler
+     155/     3CC : 00 00 06 74                 dd      vi_handler
+     155/     3D0 : 00 00 06 74                 dd      vi_handler
+     155/     3D4 : 00 00 06 74                 dd      vi_handler
+     155/     3D8 : 00 00 06 74                 dd      vi_handler
+     155/     3DC : 00 00 06 74                 dd      vi_handler
+     155/     3E0 : 00 00 06 74                 dd      vi_handler
+     155/     3E4 : 00 00 06 74                 dd      vi_handler
+     155/     3E8 : 00 00 06 74                 dd      vi_handler
+     155/     3EC : 00 00 06 74                 dd      vi_handler
+     155/     3F0 : 00 00 06 74                 dd      vi_handler
+     155/     3F4 : 00 00 06 74                 dd      vi_handler
+     155/     3F8 : 00 00 06 74                 dd      vi_handler
+     155/     3FC : 00 00 06 74                 dd      vi_handler
+     155/     400 : 00 00 06 74                 dd      vi_handler
+     155/     404 : 00 00 06 74                 dd      vi_handler
+     155/     408 : 00 00 06 74                 dd      vi_handler
+     155/     40C : 00 00 06 74                 dd      vi_handler
+     155/     410 : 00 00 06 74                 dd      vi_handler
+     155/     414 : 00 00 06 74                 dd      vi_handler
+     155/     418 : 00 00 06 74                 dd      vi_handler
+     155/     41C : 00 00 06 74                 dd      vi_handler
+     155/     420 : 00 00 06 74                 dd      vi_handler
+     155/     424 : 00 00 06 74                 dd      vi_handler
+     155/     428 : 00 00 06 74                 dd      vi_handler
+     155/     42C : 00 00 06 74                 dd      vi_handler
+     155/     430 : 00 00 06 74                 dd      vi_handler
+     155/     434 : 00 00 06 74                 dd      vi_handler
+     155/     438 : 00 00 06 74                 dd      vi_handler
+     157/     43C :                     
+     158/     43C :                     
+     159/     43C :                     ;******************************************
+     160/     43C :                     ; Identifikation                          *
+     161/     43C :                     ;******************************************
+     162/     43C :                     
+     163/     500 :                             org     500h
+     164/     500 :                     
+     165/     500 : 7A 62                       db      'zb'
+     166/     502 :                     zbios_date:
+     167/     502 : 20 21 05 20                 dw      2021h, 0520h    ; 2021-05-20
+     168/     506 :                     
+     169/     506 :                     
+     170/     506 :                     ;******************************************
+     171/     506 :                     ; Debug-Info                              *
+     172/     506 :                     ;******************************************
+     173/     506 :                     
+     174/     506 :                     debug:
+     175/     506 : 93E0                        push    @SP, r0
+     176/     508 : 31E0 0004                   ld      r0, SP(#4)
+     177/     50C : 6D00 0040                   ex      |pc_hist1|, r0
+     178/     510 : 6D00 0042                   ex      |pc_hist2|, r0
+     179/     514 : 6D00 0044                   ex      |pc_hist3|, r0
+     180/     518 : 6D00 0046                   ex      |pc_hist4|, r0
+ AS V1.42 Beta [Bld 200] - Source File zbios.asm - Page 8 - 05/24/21 12:51:08
+
+
+     181/     51C : 6D00 0048                   ex      |pc_hist5|, r0
+     182/     520 : 6D00 004A                   ex      |pc_hist6|, r0
+     183/     524 : 6D00 004C                   ex      |pc_hist7|, r0
+     184/     528 : 6F00 004E                   ld      |pc_hist8|, r0
+     185/     52C : 97E0                        pop     r0, @SP
+     186/     52E : 9E08                        ret
+     187/     530 :                     
+     188/     530 :                     
+     189/     530 :                     idebug:
+     190/     530 : 93E0                        push    @SP, r0
+     191/     532 : 31E0 0004                   ld      r0, SP(#4)
+     192/     536 : 6D00 0050                   ex      |pc_ihist1|, r0
+     193/     53A : 6D00 0052                   ex      |pc_ihist2|, r0
+     194/     53E : 6D00 0054                   ex      |pc_ihist3|, r0
+     195/     542 : 6D00 0056                   ex      |pc_ihist4|, r0
+     196/     546 : 6D00 0058                   ex      |pc_ihist5|, r0
+     197/     54A : 6D00 005A                   ex      |pc_ihist6|, r0
+     198/     54E : 6D00 005C                   ex      |pc_ihist7|, r0
+     199/     552 : 6F00 005E                   ld      |pc_ihist8|, r0
+     200/     556 : 97E0                        pop     r0, @SP
+     201/     558 : 9E08                        ret
+     202/     55A :                     
+     203/     55A :                     
+     204/     55A :                     ;******************************************
+     205/     55A :                     ; HALT                                    *
+     206/     55A :                     ;******************************************
+     207/     55A :                     
+     208/     55A :                     halt_cpu:
+     209/     55A : D02B                        calr    debug
+     210/     55C : 7A00                        halt
+     211/     55E : 9E08                        ret
+     212/     560 :                     
+     213/     560 :                     
+     214/     560 :                     ;******************************************
+     215/     560 :                     ; grundlegende Kommunikation mit Atmega   *
+     216/     560 :                     ;******************************************
+     217/     560 :                     
+     218/     560 :                     host_lock:
+     219/     560 : D02E                        calr    debug
+     220/     562 :                     
+     221/     562 :                     .host_lock:
+     222/     562 : 4D06 00F8                   tset    |host_sema|
+     223/     566 : 9E0D                        ret     pl
+     224/     568 :                     
+     225/     568 : D008                        calr    halt_cpu
+     226/     56A : E8FA                        jr      host_lock
+     227/     56C :                     
+     228/     56C :                     
+     229/     56C :                     host_unlock:
+     230/     56C : 4D08 00F8                   clr     |host_sema|
+     231/     570 : 9E08                        ret
+     232/     572 :                     
+     233/     572 :                     
+     234/     572 :                     host_transact:
+     235/     572 : D037                        calr    debug
+     236/     574 :                     
+     237/     574 :                     .still_active:
+     238/     574 : 7B0A                        mbit
+     239/     576 : EDFE                        jr      pl, .still_active
+     240/     578 :                     
+ AS V1.42 Beta [Bld 200] - Source File zbios.asm - Page 9 - 05/24/21 12:51:08
+
+
+     241/     578 : 7B08                        mset
+     242/     57A :                     
+     243/     57A :                     .not_yet_active:
+     244/     57A : 7B0A                        mbit
+     245/     57C : E5FE                        jr      mi, .not_yet_active
+     246/     57E :                     
+     247/     57E : 7B09                        mres
+     248/     580 : D03E                        calr    debug
+     249/     582 : 9E08                        ret
+     250/     584 :                     
+     251/     584 :                     
+     252/     584 :                     ;******************************************
+     253/     584 :                     ; RESET                                   *
+     254/     584 :                     ;******************************************
+     255/     584 :                     
+     256/     584 :                     reset_handler:
+     257/     584 : 7600 8000 0200              lda     rr0, psa
+     258/     58A : 7D0C                        ldctl   psapseg, r0
+     259/     58C : 7D1D                        ldctl   psapoff, r1
+     260/     58E : 760E 8000 0FFE              lda     SP, sysstack_top
+     261/     594 : D048                        calr    debug
+     262/     596 : 8D08                        clr     r0
+     263/     598 : 7D0B                        ldctl   refresh, r0
+     264/     59A : 6F00 00F8                   ld      |host_sema|, r0
+     265/     59E : 6F00 00FA                   ld      |host_message|, r0
+     266/     5A2 : 6F00 00FC                   ld      |host_command|, r0
+     267/     5A6 : 6F00 00FE                   ld      |host_size|, r0
+     268/     5AA : 6F00 0060                   ld      |nmi_count|, r0
+     269/     5AE : 6F00 0038                   ld      |rc_halted|, r0
+     270/     5B2 : 6F00 003A                   ld      |rc_cont|, r0
+     271/     5B6 : 7B09                        mres
+     272/     5B8 : 5400 0004                   ld      rr0,|reset_pc|
+     273/     5BC : 91E0                        push    @SP, rr0
+     274/     5BE : 6100 0002                   ld      r0,|reset_fcw|
+     275/     5C2 : 93E0                        push    @SP, r0
+     276/     5C4 : 2100 DEAD                   ld      r0, #0DEADh
+     277/     5C8 : 93E0                        push    @SP, r0
+     278/     5CA : 2101 C0DE                   ld      r1, #0C0DEh
+     279/     5CE : A102                        ld      r2, r0
+     280/     5D0 : A113                        ld      r3, r1
+     281/     5D2 : A104                        ld      r4, r0
+     282/     5D4 : A115                        ld      r5, r1
+     283/     5D6 : A106                        ld      r6, r0
+     284/     5D8 : A117                        ld      r7, r1
+     285/     5DA : A108                        ld      r8, r0
+     286/     5DC : A119                        ld      r9, r1
+     287/     5DE : A10A                        ld      r10, r0
+     288/     5E0 : A11B                        ld      r11, r1
+     289/     5E2 : A10C                        ld      r12, r0
+     290/     5E4 : A11D                        ld      r13, r1
+     291/     5E6 :                     
+     292/     5E6 : 4D05 0036 0001              ld      |trap_code|, #hc_reset
+     293/     5EC :                     
+     294/     5EC :                     
+     295/     5EC :                     ;******************************************
+     296/     5EC :                     ; TRAP-Handler                            *
+     297/     5EC :                     ;******************************************
+     298/     5EC :                     
+     299/     5EC :                     trap_handler:
+     300/     5EC : D074                        calr    debug
+ AS V1.42 Beta [Bld 200] - Source File zbios.asm - Page 10 - 05/24/21 12:51:08
+
+
+     301/     5EE : 5C09 000E 0010              ldm     |reg_save_area|, r0, #15
+     302/     5F4 : 7D06                        ldctl   r0, nspseg
+     303/     5F6 : 6F00 0030                   ld      |save_nspseg|, r0
+     304/     5FA : 7D07                        ldctl   r0, nspoff
+     305/     5FC : 6F00 0032                   ld      |save_nspoff|, r0
+     306/     600 : 21E0                        ld      r0, @SP
+     307/     602 : 6F00 0034                   ld      |trap_reason|, r0
+     308/     606 : 4D05 0008 0000              ld      |trap_exit+0|, #0
+     309/     60C : 31E0 0002                   ld      r0, SP(#2)              ; FCW
+     310/     610 : 6F00 000A                   ld      |trap_fcw|, r0
+     311/     614 : 35E0 0004                   ld      rr0, SP(#4)             ; PC
+     312/     618 : 5D00 000C                   ld      |trap_pc|, rr0
+     313/     61C : 010F 0008                   add     SPOFF, #8
+     314/     620 : 6F0F 002E                   ld      |save_r15|, SPOFF
+     315/     624 :                     
+     316/     624 : D063                        calr    host_lock
+     317/     626 : 6100 0036                   ld      r0, |trap_code|
+     318/     62A : 6F00 00FC                   ld      |host_command|, r0
+     319/     62E : 4D08 00FE                   clr     |host_size|
+     320/     632 : D061                        calr    host_transact
+     321/     634 : D065                        calr    host_unlock
+     322/     636 : D099                        calr    debug
+     323/     638 :                     
+     324/     638 : 6900 0038                   inc     |rc_halted|
+     325/     63C :                     
+     326/     63C :                     .halt:
+     327/     63C : D072                        calr    halt_cpu
+     328/     63E : 6100 0038                   ld      r0, |rc_halted|
+     329/     642 : 4B00 003A                   cp      r0, |rc_cont|
+     330/     646 : EEFA                        jr      nz, .halt
+     331/     648 :                     
+     332/     648 : D0A2                        calr    debug
+     333/     64A : 5C01 000F 0010              ldm     r0, |reg_save_area|, #16
+     334/     650 : 7900 0008                   ldps    |trap_exit|
+     335/     654 :                     
+     336/     654 :                     
+     337/     654 :                     ;******************************************
+     338/     654 :                     ; TRAPs                                   *
+     339/     654 :                     ;******************************************
+     340/     654 :                     
+     341/     654 :                     epu_handler:
+     342/     654 : 4D05 0036 0002              ld      |trap_code|, #hc_epu_trap
+     343/     65A : E8C8                        jr      trap_handler
+     344/     65C :                     
+     345/     65C :                     priv_handler:
+     346/     65C : 4D05 0036 0003              ld      |trap_code|, #hc_priv_trap
+     347/     662 : E8C4                        jr      trap_handler
+     348/     664 :                     
+     349/     664 :                     seg_handler:
+     350/     664 : 4D05 0036 0004              ld      |trap_code|, #hc_seg_trap
+     351/     66A : E8C0                        jr      trap_handler
+     352/     66C :                     
+     353/     66C :                     
+     354/     66C :                     ;******************************************
+     355/     66C :                     ; Interrupts                              *
+     356/     66C :                     ;******************************************
+     357/     66C :                     
+     358/     66C :                     nvi_handler:
+     359/     66C : 4D05 0036 0006              ld      |trap_code|, #hc_nvi_trap
+     360/     672 : E8BC                        jr      trap_handler
+ AS V1.42 Beta [Bld 200] - Source File zbios.asm - Page 11 - 05/24/21 12:51:08
+
+
+     361/     674 :                     
+     362/     674 :                     vi_handler:
+     363/     674 : 4D05 0036 0005              ld      |trap_code|, #hc_vi_trap
+     364/     67A : E8B8                        jr      trap_handler
+     365/     67C :                     
+     366/     67C :                     
+     367/     67C :                     ;******************************************
+     368/     67C :                     ; NMI                                     *
+     369/     67C :                     ;******************************************
+     370/     67C :                     
+     371/     67C :                     nmi_handler:
+     372/     67C : D0A7                        calr    idebug
+     373/     67E : 6900 0060                   inc     |nmi_count|, #1
+     374/     682 : 4D01 8000 088C              cp      sysstack_bottom, #1234h
+              688 : 1234             
+     375/     68A : EE29                        jr      nz, .stack_overrun
+     376/     68C :                     
+     377/     68C : 4D01 8000 0FFE              cp      sysstack_top, #4321h
+              692 : 4321             
+     378/     694 : EE2B                        jr      nz, .stack_underrun
+     379/     696 :                     
+     380/     696 : 93E0                        push    @SP, r0
+     381/     698 :                     
+     382/     698 : 2100 0000                   ld      r0, #hc_msg_nop
+     383/     69C : 6D00 00FA                   ex      r0, |host_message|
+     384/     6A0 : 0B00 0002                   cp      r0, #hc_msg_breakpoint
+     385/     6A4 : EE11                        jr      nz, .not_breakpoint
+     386/     6A6 :                     
+     387/     6A6 : 31E0 0004                   ld      r0, SP(#4)
+     388/     6AA : 0700 4000                   and     r0, #fcw_system
+     389/     6AE : EE08                        jr      nz, .system_mode
+     390/     6B0 :                     
+     391/     6B0 :                     .user_mode:
+     392/     6B0 : 4D05 0036 0008              ld      |trap_code|, #hc_breakpoint
+     393/     6B6 : D0C4                        calr    idebug
+     394/     6B8 : 97E0                        pop     r0, @SP
+     395/     6BA : 5E08 8000 05EC              jp      trap_handler
+     396/     6C0 :                     
+     397/     6C0 :                     .system_mode:
+     398/     6C0 : 6900 0062                   inc     |deferred_break|
+     399/     6C4 : D0CB                        calr    idebug
+     400/     6C6 : E808                        jr      .iret
+     401/     6C8 :                     
+     402/     6C8 :                     .not_breakpoint:
+     403/     6C8 : 0B00 0001                   cp      r0, #hc_msg_cont
+     404/     6CC : EE05                        jr      nz, .iret
+     405/     6CE :                     
+     406/     6CE : D0D0                        calr    idebug
+     407/     6D0 : 6100 0038                   ld      r0, |rc_halted|
+     408/     6D4 : 6F00 003A                   ld      |rc_cont|, r0
+     409/     6D8 :                     
+     410/     6D8 :                     .iret:
+     411/     6D8 : D0D5                        calr    idebug
+     412/     6DA : 97E0                        pop     r0, @SP
+     413/     6DC : 7B00                        iret
+     414/     6DE :                     
+     415/     6DE :                     .stack_overrun:
+     416/     6DE : D0D8                        calr    idebug
+     417/     6E0 : 4D05 0036 0009              ld      |trap_code|, #hc_sysstack_overrun
+     418/     6E6 : 5E08 8000 05EC              jp      trap_handler
+ AS V1.42 Beta [Bld 200] - Source File zbios.asm - Page 12 - 05/24/21 12:51:08
+
+
+     419/     6EC :                     
+     420/     6EC :                     .stack_underrun:
+     421/     6EC : D0DF                        calr    idebug
+     422/     6EE : 4D05 0036 000A              ld      |trap_code|, #hc_sysstack_underrun
+     423/     6F4 : 5E08 8000 05EC              jp      trap_handler
+     424/     6FA :                     
+     425/     6FA :                     
+     426/     6FA :                     ;******************************************
+     427/     6FA :                     ; Definitionen Systemaufrufe              *
+     428/     6FA :                     ;******************************************
+     429/     6FA :                     
+     430/     6FA : =RR12               BP      reg     rr12
+     431/     6FA :                     
+     432/     6FA : =R0                 RES     reg     r0
+     433/     6FA : =R1                 N       reg     r1
+     434/     6FA :                     
+     435/     6FA : =R2                 PTRSEG  reg     r2
+     436/     6FA : =R3                 PTROFF  reg     r3
+     437/     6FA : =RR2                PTR     reg     rr2
+     438/     6FA :                     
+     439/     6FA : =R6                 TEMPSEG reg     r6
+     440/     6FA : =R7                 TEMPOFF reg     r7
+     441/     6FA : =RR6                TEMPPTR reg     rr6
+     442/     6FA :                     
+     443/     6FA : =4H                 SC_STACKPARA    equ     4               ; @BP
+     444/     6FA : =4H                 SC_IDENT        equ     SC_STACKPARA+0
+     445/     6FA : =6H                 SC_FCW          equ     SC_STACKPARA+2
+     446/     6FA : =8H                 SC_PCSEG        equ     SC_STACKPARA+4
+     447/     6FA : =0AH                SC_PCOFF        equ     SC_STACKPARA+6
+     448/     6FA :                     
+     449/     6FA :                     
+     450/     6FA :                     ;******************************************
+     451/     6FA :                     ; Systemaufrufe                           *
+     452/     6FA :                     ;******************************************
+     453/     6FA :                     
+     454/     6FA :                     ; **** EXIT ****
+     455/     6FA :                     sc_exit:
+     456/     6FA :                     ; -->   N:  Exitkode
+     457/     6FA : 4D05 0036 0007              ld      |trap_code|, #hc_exit
+     458/     700 : 6F01 003E                   ld      |exit_code|, N
+     459/     704 : E803                        jr      sc_break_or_exit
+     460/     706 :                     
+     461/     706 :                     
+     462/     706 :                     ; **** BREAKPOINT ****
+     463/     706 :                     sc_breakpoint:
+     464/     706 : 4D05 0036 0008              ld      |trap_code|, #hc_breakpoint
+     465/     70C :                     
+     466/     70C :                     sc_break_or_exit:
+     467/     70C : 31C7 000A                   ld      TEMPOFF, BP(#SC_PCOFF)  ; Offset PC
+     468/     710 : AB71                        dec     TEMPOFF, #2             ; Länge SC-Instruktion
+     469/     712 : 33C7 000A                   ld      BP(#SC_PCOFF), TEMPOFF  ; korrigierte Rücksprungadresse
+     470/     716 : 010F 0004                   add     SPOFF, #4               ; Rücksprungadresse entfernen
+     471/     71A : 95E6                        pop     TEMPPTR, @SP
+     472/     71C : 95EC                        pop     BP, @SP
+     473/     71E : 5E08 8000 05EC              jp      trap_handler
+     474/     724 :                     
+     475/     724 :                     
+     476/     724 :                     ; **** Fehler ****
+     477/     724 :                     
+     478/     724 :                     error_einval:
+ AS V1.42 Beta [Bld 200] - Source File zbios.asm - Page 13 - 05/24/21 12:51:08
+
+
+     479/     724 : 2100 FFFE                   ld      RES, #EINVAL
+     480/     728 : 9E08                        ret
+     481/     72A :                     
+     482/     72A :                     error_eio:
+     483/     72A : 2100 FFFD                   ld      RES, #EIO
+     484/     72E : 9E08                        ret
+     485/     730 :                     
+     486/     730 :                     
+     487/     730 :                     ; **** TERMINNOWAIT ****
+     488/     730 :                     sc_terminnowait:
+     489/     730 : 2107 000C                   ld      TEMPOFF, #hc_terminnowait
+     490/     734 : E802                        jr      sc_termin_
+     491/     736 :                     
+     492/     736 :                     
+     493/     736 :                     ; **** TERMIN ****
+     494/     736 :                     sc_termin:
+     495/     736 : 2107 000C                   ld      TEMPOFF, #hc_terminnowait
+     496/     73A :                     
+     497/     73A :                     sc_termin_:
+     498/     73A :                     ; -->   N:      Anzahl Zeichen
+     499/     73A :                     ; -->   PTR:    Pufferadresse
+     500/     73A :                     ; <--   RES:    Anzahl Zeichen oder Fehlerkode
+     501/     73A : D11B                        calr    debug
+     502/     73C : 0B01 0100                   cp      N, #hc_maxpayload
+     503/     740 : EBF1                        jr      ugt, error_einval
+     504/     742 :                     
+     505/     742 : D0F2                        calr    host_lock
+     506/     744 : 6F07 00FC                   ld      |host_command|, TEMPOFF
+     507/     748 : 6F01 00FE                   ld      |host_size|, N
+     508/     74C : D0EE                        calr    host_transact
+     509/     74E : DFA8                        calr    sc_copyout
+     510/     750 : 6100 00FE                   ld      RES, |host_size|
+     511/     754 : D0F5                        calr    host_unlock
+     512/     756 : 8B10                        cp      RES, N
+     513/     758 : EBE8                        jr      ugt, error_eio
+     514/     75A :                     
+     515/     75A : D12B                        calr    debug
+     516/     75C : 9E08                        ret
+     517/     75E :                     
+     518/     75E :                     
+     519/     75E :                     ; **** TERMOUTNOWAIT ****
+     520/     75E :                     sc_termoutnowait:
+     521/     75E : 2107 000E                   ld      TEMPOFF, #hc_termoutnowait
+     522/     762 : E802                        jr      sc_termout_
+     523/     764 :                     
+     524/     764 :                     
+     525/     764 :                     ; **** TERMOUT ****
+     526/     764 :                     sc_termout:
+     527/     764 : 2107 000D                   ld      TEMPOFF, #hc_termout
+     528/     768 :                     
+     529/     768 :                     sc_termout_:
+     530/     768 :                     ; -->   N:      Anzahl Zeichen
+     531/     768 :                     ; -->   PTR:    Pufferadresse
+     532/     768 :                     ; <--   RES:    Anzahl Zeichen oder Fehlerkode
+     533/     768 : D132                        calr    debug
+     534/     76A : 0B01 0100                   cp      N, #hc_maxpayload
+     535/     76E : EBDA                        jr      ugt, error_einval
+     536/     770 :                     
+     537/     770 : D109                        calr    host_lock
+     538/     772 : 6F07 00FC                   ld      |host_command|, TEMPOFF
+ AS V1.42 Beta [Bld 200] - Source File zbios.asm - Page 14 - 05/24/21 12:51:08
+
+
+     539/     776 : 6F01 00FE                   ld      |host_size|, N
+     540/     77A : DFCF                        calr    sc_copyin
+     541/     77C : D106                        calr    host_transact
+     542/     77E : 6100 00FE                   ld      RES, |host_size|
+     543/     782 : D10C                        calr    host_unlock
+     544/     784 : 8B10                        cp      RES, N
+     545/     786 : EBD1                        jr      ugt, error_eio
+     546/     788 :                     
+     547/     788 : D142                        calr    debug
+     548/     78A : 9E08                        ret
+     549/     78C :                     
+     550/     78C :                     
+     551/     78C :                     ; **** TERMREADLINE ****
+     552/     78C :                     sc_termreadline:
+     553/     78C :                     ; -->   N:      Anzahl Zeichen maximal
+     554/     78C :                     ; -->   PTR:    Pufferadresse
+     555/     78C :                     ; <--   RES:    Anzahl Zeichen oder Fehlerkode
+     556/     78C : D144                        calr    debug
+     557/     78E : 0B01 0100                   cp      N, #hc_maxpayload
+     558/     792 : EBC8                        jr      ugt, error_einval
+     559/     794 :                     
+     560/     794 : D11B                        calr    host_lock
+     561/     796 : 4D05 00FC 000F              ld      |host_command|, #hc_termreadline
+     562/     79C : 6F01 00FE                   ld      |host_size|, N
+     563/     7A0 : D118                        calr    host_transact
+     564/     7A2 : DFD2                        calr    sc_copyout
+     565/     7A4 : 6100 00FE                   ld      RES, |host_size|
+     566/     7A8 : D11F                        calr    host_unlock
+     567/     7AA : 8B10                        cp      RES, N
+     568/     7AC : EBBE                        jr      ugt, error_eio
+     569/     7AE :                     
+     570/     7AE : D155                        calr    debug
+     571/     7B0 : 9E08                        ret
+     572/     7B2 :                     
+     573/     7B2 :                     
+     574/     7B2 :                     ; **** TERMINSTAT ****
+     575/     7B2 :                     sc_terminstat:
+     576/     7B2 :                     ; <--   RES:    Anzahl verfügbare Zeichen
+     577/     7B2 : D157                        calr    debug
+     578/     7B4 : D12B                        calr    host_lock
+     579/     7B6 : 4D05 00FC 0010              ld      |host_command|, #hc_terminstat
+     580/     7BC : D126                        calr    host_transact
+     581/     7BE : 6100 00FE                   ld      RES, |host_size|
+     582/     7C2 : D12C                        calr    host_unlock
+     583/     7C4 : D160                        calr    debug
+     584/     7C6 : 9E08                        ret
+     585/     7C8 :                     
+     586/     7C8 :                     
+     587/     7C8 :                     ; **** TERMOUTSTAT ****
+     588/     7C8 :                     sc_termoutstat:
+     589/     7C8 :                     ; <--   RES:    freie Zeichen
+     590/     7C8 : D162                        calr    debug
+     591/     7CA : D136                        calr    host_lock
+     592/     7CC : 4D05 00FC 0011              ld      |host_command|, #hc_termoutstat
+     593/     7D2 : D131                        calr    host_transact
+     594/     7D4 : 6100 00FE                   ld      RES, |host_size|
+     595/     7D8 : D137                        calr    host_unlock
+     596/     7DA : D16B                        calr    debug
+     597/     7DC : 9E08                        ret
+     598/     7DE :                     
+ AS V1.42 Beta [Bld 200] - Source File zbios.asm - Page 15 - 05/24/21 12:51:08
+
+
+     599/     7DE :                     
+     600/     7DE :                     ;******************************************
+     601/     7DE :                     ; Hilfsfunktionen Systemaufrufe           *
+     602/     7DE :                     ;******************************************
+     603/     7DE :                     
+     604/     7DE :                     sc_copyin:
+     605/     7DE : D16D                        calr    debug
+     606/     7E0 : 8D14                        test    N
+     607/     7E2 : 9E06                        ret     z
+     608/     7E4 :                     
+     609/     7E4 : 31C7 0006                   ld      TEMPOFF, BP(#SC_FCW)    ; FCW
+     610/     7E8 : 0707 8000                   and     TEMPOFF, #fcw_segmented ; segmentiert?
+     611/     7EC : EE02                        jr      nz, .copyin
+     612/     7EE :                     
+     613/     7EE : 31C2 0008                   ld      PTRSEG, BP(#SC_PCSEG)   ; Segment PC
+     614/     7F2 :                     
+     615/     7F2 :                     .copyin:
+     616/     7F2 : 7606 8000 0100              lda     TEMPPTR, host_payload
+     617/     7F8 : A110                        ld      RES, N
+     618/     7FA : BA21 0060                   ldirb   @TEMPPTR, @PTR, RES
+     619/     7FE : 9E08                        ret
+     620/     800 :                     
+     621/     800 :                     
+     622/     800 :                     sc_copyout:
+     623/     800 : D17E                        calr    debug
+     624/     802 : 6100 00FE                   ld      RES, |host_size|
+     625/     806 : 8D04                        test    RES
+     626/     808 : 9E06                        ret     z
+     627/     80A :                     
+     628/     80A : 8B01                        cp      N, RES
+     629/     80C : EF01                        jr      uge, .ok
+     630/     80E :                     
+     631/     80E : A110                        ld      RES, N
+     632/     810 :                     
+     633/     810 :                     .ok:
+     634/     810 : 31C7 0006                   ld      TEMPOFF, BP(#SC_FCW)    ; FCW
+     635/     814 : 0707 8000                   and     TEMPOFF, #fcw_segmented ; segmentiert?
+     636/     818 : EE02                        jr      nz, .copyout
+     637/     81A :                     
+     638/     81A : 31C2 0008                   ld      PTRSEG, BP(#SC_PCSEG)   ; Segment PC
+     639/     81E :                     
+     640/     81E :                     .copyout:
+     641/     81E : 7606 8000 0100              lda     TEMPPTR, host_payload
+     642/     824 : BA61 0020                   ldirb   @PTR, @TEMPPTR, RES
+     643/     828 : 9E08                        ret
+     644/     82A :                     
+     645/     82A :                     
+     646/     82A :                     ;******************************************
+     647/     82A :                     ; SC                                      *
+     648/     82A :                     ;******************************************
+     649/     82A :                     
+     650/     82A :                     sc_handler:
+     651/     82A : D193                        calr    debug
+     652/     82C : 91EC                        push    @SP, BP
+     653/     82E : 94EC                        ld      BP, SP
+     654/     830 : 91E6                        push    @SP, TEMPPTR
+     655/     832 : 8D68                        clr     TEMPSEG                 ; immer 0
+     656/     834 : 31C7 0004                   ld      TEMPOFF, BP(#SC_IDENT)  ; Funktionskode
+     657/     838 : 0707 00FF                   and     TEMPOFF, #0FFh          ; 0..255
+     658/     83C : 6F07 003C                   ld      |last_sc_code|, TEMPOFF
+ AS V1.42 Beta [Bld 200] - Source File zbios.asm - Page 16 - 05/24/21 12:51:08
+
+
+     659/     840 : 0B07 0009                   cp      TEMPOFF, #sc_jumptable_entries
+     660/     844 : EF16                        jr      uge, .nop               ; undefinierter Funktionskode
+     661/     846 :                     
+     662/     846 : B371 0001                   sll     TEMPOFF, #1             ; Worte
+     663/     84A : 6177 8000 087A              ld      TEMPOFF, sc_jumptable(TEMPOFF)
+     664/     850 :                     
+     665/     850 : 1F60                        call    @TEMPPTR
+     666/     852 :                     
+     667/     852 : 8D78                        clr     TEMPOFF
+     668/     854 : 6D07 0062                   ex      TEMPOFF, |deferred_break|
+     669/     858 : 8D74                        test    TEMPOFF
+     670/     85A : E608                        jr      z, .done
+     671/     85C :                     
+     672/     85C : 95E6                        pop     TEMPPTR, @SP
+     673/     85E : 95EC                        pop     BP, @SP
+     674/     860 : 4D05 0036 0008              ld      |trap_code|, #hc_breakpoint
+     675/     866 : 5E08 8000 05EC              jp      trap_handler
+     676/     86C :                     
+     677/     86C :                     .done:
+     678/     86C : 95E6                        pop     TEMPPTR, @SP
+     679/     86E : 95EC                        pop     BP, @SP
+     680/     870 : 7B00                        iret
+     681/     872 :                     
+     682/     872 :                     .nop:
+     683/     872 : D1B7                        calr    debug
+     684/     874 : 2100 FFFF                   ld      RES, #ENOSYS
+     685/     878 : E8F9                        jr      .done
+     686/     87A :                     
+     687/     87A :                     
+     688/     87A :                     ;******************************************
+     689/     87A :                     ; Verteiler                               *
+     690/     87A :                     ;******************************************
+     691/     87A :                     
+     692/     87A :                             align   2
+     693/     87A :                     
+     694/     87A :                     sc_jumptable:
+     695/     87A : 06 FA                       dw      sc_exit
+     696/     87C :                     sc_jumptable1:
+     697/     87C : 07 06                       dw      sc_breakpoint
+     698/     87E : 07 36                       dw      sc_termin
+     699/     880 : 07 30                       dw      sc_terminnowait
+     700/     882 : 07 64                       dw      sc_termout
+     701/     884 : 07 5E                       dw      sc_termoutnowait
+     702/     886 : 07 8C                       dw      sc_termreadline
+     703/     888 : 07 B2                       dw      sc_terminstat
+     704/     88A : 07 C8                       dw      sc_termoutstat
+     705/     88C : =9H                 sc_jumptable_entries    equ     ($-sc_jumptable)/(sc_jumptable1-sc_jumptable)
+     706/     88C :                     
+     707/     88C :                     
+     708/     88C :                     ;******************************************
+     709/     88C :                     ; System-Stack                            *
+     710/     88C :                     ;******************************************
+     711/     88C :                     
+     712/     88C : 12 34               sysstack_bottom dw      1234h
+     713/     88E :                     
+     714/     88E :                     
+     715/     FFE :                             org     0ffeh
+     716/     FFE :                     
+     717/     FFE : 43 21               sysstack_top    dw      4321h
+     718/    1000 :                     
+ AS V1.42 Beta [Bld 200] - Source File zbios.asm - Page 17 - 05/24/21 12:51:08
+
+
+     719/    1000 :                     
+     720/    1000 :                             end
+ AS V1.42 Beta [Bld 200] - Source File zbios.asm - Page 18 - 05/24/21 12:51:08
+
+
+  Symbol Table (* = unused):
+  --------------------------
+
+*ARCHITECTURE :                                      "x86_64-unknown-linux" - |
+*BIGENDIAN :                      0 - | *BITFUNCSINC :                    1 - |
+*BRANCHEXT :                      0 - | *CASESENSITIVE :                  0 - |
+*COMPMODE :                       0 - | *CONSTPI :        3.141592653589793 - |
+*CUSTOM :                         0 - | *DATE :                  "05/24/21" - |
+ DEBUG :                        506 C |  DEFERRED_BREAK :                62 C |
+ EINVAL :         0FFFFFFFFFFFFFFFE - |  EIO :            0FFFFFFFFFFFFFFFD - |
+ ENOSYS :         0FFFFFFFFFFFFFFFF - |  EPU_HANDLER :                  654 C |
+*EPU_TRAP :                     208 C |  ERROR_EINVAL :                 724 C |
+ ERROR_EIO :                    72A C |  EXIT_CODE :                     3E C |
+*FALSE :                          0 - | *FCW_C :                         80 - |
+*FCW_DA :                         8 - | *FCW_EPA :                     2000 - |
+*FCW_H :                          4 - | *FCW_NVIE :                     800 - |
+*FCW_PV :                        10 - | *FCW_S :                         20 - |
+ FCW_SEGMENTED :               8000 - |  FCW_SYSTEM :                  4000 - |
+*FCW_VIE :                     1000 - | *FCW_Z :                         40 - |
+*FULLPMMU :                       1 - |  HALT_CPU :                     55A C |
+*HAS64 :                          1 - | *HASDSP :                         0 - |
+*HASFPU :                         0 - | *HASPMMU :                        0 - |
+ HC_BREAKPOINT :                  8 - |  HC_EPU_TRAP :                    2 - |
+ HC_EXIT :                        7 - |  HC_MAXPAYLOAD :                100 - |
+ HC_MSG_BREAKPOINT :              2 - |  HC_MSG_CONT :                    1 - |
+ HC_MSG_NOP :                     0 - | *HC_NOP :                         0 - |
+ HC_NVI_TRAP :                    6 - |  HC_PRIV_TRAP :                   3 - |
+ HC_RESET :                       1 - |  HC_SEG_TRAP :                    4 - |
+ HC_SYSSTACK_OVERRUN :            9 - |  HC_SYSSTACK_UNDERRUN :          0A - |
+*HC_TERMIN :                     0B - |  HC_TERMINNOWAIT :               0C - |
+ HC_TERMINSTAT :                 10 - |  HC_TERMOUT :                    0D - |
+ HC_TERMOUTNOWAIT :              0E - |  HC_TERMOUTSTAT :                11 - |
+ HC_TERMREADLINE :               0F - |  HC_VI_TRAP :                     5 - |
+*HOSTCOMM_AREA :                0F8 C |  HOST_COMMAND :                 0FC C |
+ HOST_LOCK :                    560 C | *HOST_LOCK.HOST_LOCK :          562 C |
+ HOST_MESSAGE :                 0FA C |  HOST_PAYLOAD :                 100 C |
+ HOST_SEMA :                    0F8 C |  HOST_SIZE :                    0FE C |
+ HOST_TRANSACT :                572 C |  HOST_TRANSACT.NOT_YET_ACTIVE : 57A C |
+ HOST_TRANSACT.STILL_ACTIVE :   574 C |  HOST_UNLOCK :                  56C C |
+ IDEBUG :                       530 C | *INEXTMODE :                      0 - |
+*INLWORDMODE :                    0 - | *INMAXMODE :                      0 - |
+*INSRCMODE :                      0 - | *INSUPMODE :                      1 - |
+ LAST_SC_CODE :                  3C C | *LISTON :                         1 - |
+*MACEXP :                         7 - | *MOMCPU :                      8001 - |
+*MOMCPUNAME :               "Z8001" - | *NESTMAX :                      100 - |
+ NMI_COUNT :                     60 C |  NMI_HANDLER :                  67C C |
+ NMI_HANDLER.IRET :             6D8 C |  NMI_HANDLER.NOT_BREAKPOINT :   6C8 C |
+ NMI_HANDLER.STACK_OVERRUN :    6DE C |  NMI_HANDLER.STACK_UNDERRUN :   6EC C |
+ NMI_HANDLER.SYSTEM_MODE :      6C0 C | *NMI_HANDLER.USER_MODE :        6B0 C |
+*NMI_TRAP :                     228 C |  NVI_HANDLER :                  66C C |
+*NVI_TRAP :                     230 C | *PACKING :                        0 - |
+*PADDING :                        1 - |  PC_HIST1 :                      40 C |
+ PC_HIST2 :                      42 C |  PC_HIST3 :                      44 C |
+ PC_HIST4 :                      46 C |  PC_HIST5 :                      48 C |
+ PC_HIST6 :                      4A C |  PC_HIST7 :                      4C C |
+ PC_HIST8 :                      4E C |  PC_IHIST1 :                     50 C |
+ PC_IHIST2 :                     52 C |  PC_IHIST3 :                     54 C |
+ PC_IHIST4 :                     56 C |  PC_IHIST5 :                     58 C |
+ PC_IHIST6 :                     5A C |  PC_IHIST7 :                     5C C |
+ PC_IHIST8 :                     5E C |  PRIV_HANDLER :                 65C C |
+ AS V1.42 Beta [Bld 200] - Source File zbios.asm - Page 19 - 05/24/21 12:51:08
+
+
+*PRIV_TRAP :                    210 C |  PSA :                          200 C |
+ RC_CONT :                       3A C |  RC_HALTED :                     38 C |
+ REG_SAVE_AREA :                 10 C | *RELAXED :                        0 - |
+ RESET_FCW :                      2 C |  RESET_HANDLER :                584 C |
+ RESET_PC :                       4 C | *RESET_TRAP :                     0 C |
+ SAVE_NSPOFF :                   32 C |  SAVE_NSPSEG :                   30 C |
+*SAVE_R0 :                       10 C | *SAVE_R1 :                       12 C |
+*SAVE_R10 :                      24 C | *SAVE_R11 :                      26 C |
+*SAVE_R12 :                      28 C | *SAVE_R13 :                      2A C |
+*SAVE_R14 :                      2C C |  SAVE_R15 :                      2E C |
+*SAVE_R2 :                       14 C | *SAVE_R3 :                       16 C |
+*SAVE_R4 :                       18 C | *SAVE_R5 :                       1A C |
+*SAVE_R6 :                       1C C | *SAVE_R7 :                       1E C |
+*SAVE_R8 :                       20 C | *SAVE_R9 :                       22 C |
+ SC_BREAKPOINT :                706 C |  SC_BREAK_OR_EXIT :             70C C |
+ SC_COPYIN :                    7DE C |  SC_COPYIN.COPYIN :             7F2 C |
+ SC_COPYOUT :                   800 C |  SC_COPYOUT.COPYOUT :           81E C |
+ SC_COPYOUT.OK :                810 C |  SC_EXIT :                      6FA C |
+ SC_FCW :                         6 - |  SC_HANDLER :                   82A C |
+ SC_HANDLER.DONE :              86C C |  SC_HANDLER.NOP :               872 C |
+ SC_IDENT :                       4 - |  SC_JUMPTABLE :                 87A C |
+ SC_JUMPTABLE1 :                87C C |  SC_JUMPTABLE_ENTRIES :           9 - |
+ SC_PCOFF :                      0A - |  SC_PCSEG :                       8 - |
+ SC_STACKPARA :                   4 - |  SC_TERMIN :                    736 C |
+ SC_TERMINNOWAIT :              730 C |  SC_TERMINSTAT :                7B2 C |
+ SC_TERMIN_ :                   73A C |  SC_TERMOUT :                   764 C |
+ SC_TERMOUTNOWAIT :             75E C |  SC_TERMOUTSTAT :               7C8 C |
+ SC_TERMOUT_ :                  768 C |  SC_TERMREADLINE :              78C C |
+*SC_TRAP :                      218 C |  SEG_HANDLER :                  664 C |
+*SEG_TRAP :                     220 C |  SYSSTACK_BOTTOM :              88C C |
+ SYSSTACK_TOP :                0FFE C | *SYS_BREAKPOINT :                 1 - |
+*SYS_EXIT :                       0 - | *SYS_TERMIN :                     2 - |
+*SYS_TERMINNOWAIT :               3 - | *SYS_TERMINSTAT :                 7 - |
+*SYS_TERMOUT :                    4 - | *SYS_TERMOUTNOWAIT :              5 - |
+*SYS_TERMOUTSTAT :                8 - | *SYS_TERMREADLINE :               6 - |
+*TIME :                  "12:51:08" - |  TRAP_CODE :                     36 C |
+ TRAP_EXIT :                      8 C |  TRAP_FCW :                      0A C |
+ TRAP_HANDLER :                 5EC C |  TRAP_HANDLER.HALT :            63C C |
+ TRAP_PC :                       0C C |  TRAP_REASON :                   34 C |
+*TRUE :                           1 - | *VERSION :                     142F - |
+ VI_HANDLER :                   674 C | *VI_TRAP :                      238 C |
+*Z80SYNTAX :                      0 - | *ZBIOS_DATE :                   502 C |
+
+    197 symbols
+     79 unused symbols
+
+ AS V1.42 Beta [Bld 200] - Source File zbios.asm - Page 20 - 05/24/21 12:51:08
+
+
+  Register Definitions (* = unused):
+  ----------------------------------
+
+ BP --> RR12                          |  N --> R1                            
+ PTR --> RR2                          | *PTROFF --> R3                       
+ PTRSEG --> R2                        |  RES --> R0                          
+ SP --> RR14                          |  SPOFF --> R15                       
+*SPSEG --> R14                        |  TEMPOFF --> R7                      
+ TEMPPTR --> RR6                      |  TEMPSEG --> R6                      
+
+     12 definitions
+
+ AS V1.42 Beta [Bld 200] - Source File zbios.asm - Page 21 - 05/24/21 12:51:08
+
+
+  Defined Functions:
+  ------------------
+
+ROTRN                                 | ROTLN                                
+SHRN                                  | SHLN                                 
+GETBIT                                | EVEN                                 
+ODD                                   | LOWORD                               
+HIWORD                                | LO                                   
+HI                                    | CUTOUT                               
+INVMASK                               | MASK                                 
+
+ AS V1.42 Beta [Bld 200] - Source File zbios.asm - Page 22 - 05/24/21 12:51:08
+
+
+  Code Pages:
+  ----------
+
+STANDARD (0 changed characters)
+
+1 code page
+ AS V1.42 Beta [Bld 200] - Source File zbios.asm - Page 23 - 05/24/21 12:51:08
+
+
+  Space Used in CODE :
+  --------------------
+
+0-63               F8-43B             500-88D            FFE-FFF            
+
+ AS V1.42 Beta [Bld 200] - Source File zbios.asm - Page 24 - 05/24/21 12:51:08
+
+
+
+  Cross Reference List:
+  ---------------------
+
+symbol BITFUNCSINC (=1, /usr/local/include/asl//bitfuncs.inc:2):
+ file /usr/local/include/asl//bitfuncs.inc :
+      1    
+
+symbol BP (=RR12, /home/playground/src/z8k/zbios/zbios.asm:430):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    467      469      472      609      613      634      638      652    
+    653      656      673      679    
+
+symbol DEBUG (=506, /home/playground/src/z8k/zbios/zbios.asm:174):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    209      219      235      248      261      300      322      332    
+    501      515      533      547      556      570      577      583    
+    590      596      605      623      651      683    
+
+symbol DEFERRED_BREAK (=62, /home/playground/src/z8k/zbios/zbios.asm:93):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    398      668    
+
+symbol EINVAL (=0FFFFFFFFFFFFFFFE, /home/playground/src/z8k/zbios/z8k_errno.inc:4):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    479    
+
+symbol EIO (=0FFFFFFFFFFFFFFFD, /home/playground/src/z8k/zbios/z8k_errno.inc:5):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    483    
+
+symbol ENOSYS (=0FFFFFFFFFFFFFFFF, /home/playground/src/z8k/zbios/z8k_errno.inc:3):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    684    
+
+symbol EPU_HANDLER (=654, /home/playground/src/z8k/zbios/zbios.asm:341):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    124    
+
+symbol ERROR_EINVAL (=724, /home/playground/src/z8k/zbios/zbios.asm:478):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    503      535      558    
+
+symbol ERROR_EIO (=72A, /home/playground/src/z8k/zbios/zbios.asm:482):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    513      545      568    
+
+symbol EXIT_CODE (=3E, /home/playground/src/z8k/zbios/zbios.asm:72):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    458    
+
+symbol FCW_SEGMENTED (=8000, /home/playground/src/z8k/zbios/z8k_fcw.inc:3):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+     23       33      123      128      133      138      143      148    
+    153      610      635    
+
+symbol FCW_SYSTEM (=4000, /home/playground/src/z8k/zbios/z8k_fcw.inc:4):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+     23       33      123      128      133      138      143      148    
+    153      388    
+ AS V1.42 Beta [Bld 200] - Source File zbios.asm - Page 25 - 05/24/21 12:51:08
+
+
+
+symbol HALT_CPU (=55A, /home/playground/src/z8k/zbios/zbios.asm:208):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    225      327    
+
+symbol HC_BREAKPOINT (=8, /home/playground/src/z8k/zbios/z8k_hostcomm.inc:12):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    392      464      674    
+
+symbol HC_EPU_TRAP (=2, /home/playground/src/z8k/zbios/z8k_hostcomm.inc:6):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    342    
+
+symbol HC_EXIT (=7, /home/playground/src/z8k/zbios/z8k_hostcomm.inc:11):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    457    
+
+symbol HC_MAXPAYLOAD (=100, /home/playground/src/z8k/zbios/z8k_hostcomm.inc:23):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    107      502      534      557    
+
+symbol HC_MSG_BREAKPOINT (=2, /home/playground/src/z8k/zbios/z8k_hostcomm.inc:27):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    384    
+
+symbol HC_MSG_CONT (=1, /home/playground/src/z8k/zbios/z8k_hostcomm.inc:26):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    403    
+
+symbol HC_MSG_NOP (=0, /home/playground/src/z8k/zbios/z8k_hostcomm.inc:25):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    382    
+
+symbol HC_NVI_TRAP (=6, /home/playground/src/z8k/zbios/z8k_hostcomm.inc:10):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    359    
+
+symbol HC_PRIV_TRAP (=3, /home/playground/src/z8k/zbios/z8k_hostcomm.inc:7):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    346    
+
+symbol HC_RESET (=1, /home/playground/src/z8k/zbios/z8k_hostcomm.inc:5):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    292    
+
+symbol HC_SEG_TRAP (=4, /home/playground/src/z8k/zbios/z8k_hostcomm.inc:8):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    350    
+
+symbol HC_SYSSTACK_OVERRUN (=9, /home/playground/src/z8k/zbios/z8k_hostcomm.inc:13):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    417    
+
+symbol HC_SYSSTACK_UNDERRUN (=0A, /home/playground/src/z8k/zbios/z8k_hostcomm.inc:14):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    422    
+
+symbol HC_TERMINNOWAIT (=0C, /home/playground/src/z8k/zbios/z8k_hostcomm.inc:16):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    489      495    
+ AS V1.42 Beta [Bld 200] - Source File zbios.asm - Page 26 - 05/24/21 12:51:08
+
+
+
+symbol HC_TERMINSTAT (=10, /home/playground/src/z8k/zbios/z8k_hostcomm.inc:20):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    579    
+
+symbol HC_TERMOUT (=0D, /home/playground/src/z8k/zbios/z8k_hostcomm.inc:17):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    527    
+
+symbol HC_TERMOUTNOWAIT (=0E, /home/playground/src/z8k/zbios/z8k_hostcomm.inc:18):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    521    
+
+symbol HC_TERMOUTSTAT (=11, /home/playground/src/z8k/zbios/z8k_hostcomm.inc:21):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    592    
+
+symbol HC_TERMREADLINE (=0F, /home/playground/src/z8k/zbios/z8k_hostcomm.inc:19):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    561    
+
+symbol HC_VI_TRAP (=5, /home/playground/src/z8k/zbios/z8k_hostcomm.inc:9):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    363    
+
+symbol HOST_COMMAND (=0FC, /home/playground/src/z8k/zbios/zbios.asm:105):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    266      318      506      538      561      579      592    
+
+symbol HOST_LOCK (=560, /home/playground/src/z8k/zbios/zbios.asm:218):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    226      316      505      537      560      578      591    
+
+symbol HOST_MESSAGE (=0FA, /home/playground/src/z8k/zbios/zbios.asm:104):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    265      383    
+
+symbol HOST_PAYLOAD (=100, /home/playground/src/z8k/zbios/zbios.asm:107):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    616      641    
+
+symbol HOST_SEMA (=0F8, /home/playground/src/z8k/zbios/zbios.asm:103):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    222      230      264    
+
+symbol HOST_SIZE (=0FE, /home/playground/src/z8k/zbios/zbios.asm:106):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    267      319      507      510      539      542      562      565    
+    581      594      624    
+
+symbol HOST_TRANSACT (=572, /home/playground/src/z8k/zbios/zbios.asm:234):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    320      508      541      563      580      593    
+
+symbol HOST_TRANSACT.NOT_YET_ACTIVE (=57A, /home/playground/src/z8k/zbios/zbios.asm:243):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    245    
+
+symbol HOST_TRANSACT.STILL_ACTIVE (=574, /home/playground/src/z8k/zbios/zbios.asm:237):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+ AS V1.42 Beta [Bld 200] - Source File zbios.asm - Page 27 - 05/24/21 12:51:08
+
+
+    239    
+
+symbol HOST_UNLOCK (=56C, /home/playground/src/z8k/zbios/zbios.asm:229):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    321      511      543      566      582      595    
+
+symbol IDEBUG (=530, /home/playground/src/z8k/zbios/zbios.asm:189):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    372      393      399      406      411      416      421    
+
+symbol LAST_SC_CODE (=3C, /home/playground/src/z8k/zbios/zbios.asm:71):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    658    
+
+symbol N (=R1, /home/playground/src/z8k/zbios/zbios.asm:433):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    458      502      507      512      534      539      544      557    
+    562      567      606      617      628      631    
+
+symbol NMI_COUNT (=60, /home/playground/src/z8k/zbios/zbios.asm:92):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    268      373    
+
+symbol NMI_HANDLER (=67C, /home/playground/src/z8k/zbios/zbios.asm:371):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    144    
+
+symbol NMI_HANDLER.IRET (=6D8, /home/playground/src/z8k/zbios/zbios.asm:410):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    400      404    
+
+symbol NMI_HANDLER.NOT_BREAKPOINT (=6C8, /home/playground/src/z8k/zbios/zbios.asm:402):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    385    
+
+symbol NMI_HANDLER.STACK_OVERRUN (=6DE, /home/playground/src/z8k/zbios/zbios.asm:415):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    375    
+
+symbol NMI_HANDLER.STACK_UNDERRUN (=6EC, /home/playground/src/z8k/zbios/zbios.asm:420):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    378    
+
+symbol NMI_HANDLER.SYSTEM_MODE (=6C0, /home/playground/src/z8k/zbios/zbios.asm:397):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    389    
+
+symbol NVI_HANDLER (=66C, /home/playground/src/z8k/zbios/zbios.asm:358):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    149    
+
+symbol PC_HIST1 (=40, /home/playground/src/z8k/zbios/zbios.asm:74):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    177    
+
+symbol PC_HIST2 (=42, /home/playground/src/z8k/zbios/zbios.asm:75):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    178    
+
+symbol PC_HIST3 (=44, /home/playground/src/z8k/zbios/zbios.asm:76):
+ AS V1.42 Beta [Bld 200] - Source File zbios.asm - Page 28 - 05/24/21 12:51:08
+
+
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    179    
+
+symbol PC_HIST4 (=46, /home/playground/src/z8k/zbios/zbios.asm:77):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    180    
+
+symbol PC_HIST5 (=48, /home/playground/src/z8k/zbios/zbios.asm:78):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    181    
+
+symbol PC_HIST6 (=4A, /home/playground/src/z8k/zbios/zbios.asm:79):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    182    
+
+symbol PC_HIST7 (=4C, /home/playground/src/z8k/zbios/zbios.asm:80):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    183    
+
+symbol PC_HIST8 (=4E, /home/playground/src/z8k/zbios/zbios.asm:81):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    184    
+
+symbol PC_IHIST1 (=50, /home/playground/src/z8k/zbios/zbios.asm:83):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    192    
+
+symbol PC_IHIST2 (=52, /home/playground/src/z8k/zbios/zbios.asm:84):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    193    
+
+symbol PC_IHIST3 (=54, /home/playground/src/z8k/zbios/zbios.asm:85):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    194    
+
+symbol PC_IHIST4 (=56, /home/playground/src/z8k/zbios/zbios.asm:86):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    195    
+
+symbol PC_IHIST5 (=58, /home/playground/src/z8k/zbios/zbios.asm:87):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    196    
+
+symbol PC_IHIST6 (=5A, /home/playground/src/z8k/zbios/zbios.asm:88):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    197    
+
+symbol PC_IHIST7 (=5C, /home/playground/src/z8k/zbios/zbios.asm:89):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    198    
+
+symbol PC_IHIST8 (=5E, /home/playground/src/z8k/zbios/zbios.asm:90):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    199    
+
+symbol PRIV_HANDLER (=65C, /home/playground/src/z8k/zbios/zbios.asm:345):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    129    
+
+symbol PSA (=200, /home/playground/src/z8k/zbios/zbios.asm:116):
+ AS V1.42 Beta [Bld 200] - Source File zbios.asm - Page 29 - 05/24/21 12:51:08
+
+
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    257    
+
+symbol PTR (=RR2, /home/playground/src/z8k/zbios/zbios.asm:437):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    618      642    
+
+symbol PTRSEG (=R2, /home/playground/src/z8k/zbios/zbios.asm:435):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    613      638    
+
+symbol RC_CONT (=3A, /home/playground/src/z8k/zbios/zbios.asm:69):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    270      329      408    
+
+symbol RC_HALTED (=38, /home/playground/src/z8k/zbios/zbios.asm:68):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    269      324      328      407    
+
+symbol REG_SAVE_AREA (=10, /home/playground/src/z8k/zbios/zbios.asm:41):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    301      333    
+
+symbol RES (=R0, /home/playground/src/z8k/zbios/zbios.asm:432):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    479      483      510      512      542      544      565      567    
+    581      594      617      618      624      625      628      631    
+    642      684    
+
+symbol RESET_FCW (=2, /home/playground/src/z8k/zbios/zbios.asm:23):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    274    
+
+symbol RESET_HANDLER (=584, /home/playground/src/z8k/zbios/zbios.asm:256):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+     24       34    
+
+symbol RESET_PC (=4, /home/playground/src/z8k/zbios/zbios.asm:24):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    272    
+
+symbol SAVE_NSPOFF (=32, /home/playground/src/z8k/zbios/zbios.asm:59):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    305    
+
+symbol SAVE_NSPSEG (=30, /home/playground/src/z8k/zbios/zbios.asm:58):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    303    
+
+symbol SAVE_R15 (=2E, /home/playground/src/z8k/zbios/zbios.asm:57):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    314    
+
+symbol SC_BREAKPOINT (=706, /home/playground/src/z8k/zbios/zbios.asm:463):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    697    
+
+symbol SC_BREAK_OR_EXIT (=70C, /home/playground/src/z8k/zbios/zbios.asm:466):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    459    
+ AS V1.42 Beta [Bld 200] - Source File zbios.asm - Page 30 - 05/24/21 12:51:08
+
+
+
+symbol SC_COPYIN (=7DE, /home/playground/src/z8k/zbios/zbios.asm:604):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    540    
+
+symbol SC_COPYIN.COPYIN (=7F2, /home/playground/src/z8k/zbios/zbios.asm:615):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    611    
+
+symbol SC_COPYOUT (=800, /home/playground/src/z8k/zbios/zbios.asm:622):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    509      564    
+
+symbol SC_COPYOUT.COPYOUT (=81E, /home/playground/src/z8k/zbios/zbios.asm:640):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    636    
+
+symbol SC_COPYOUT.OK (=810, /home/playground/src/z8k/zbios/zbios.asm:633):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    629    
+
+symbol SC_EXIT (=6FA, /home/playground/src/z8k/zbios/zbios.asm:455):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    695    
+
+symbol SC_FCW (=6, /home/playground/src/z8k/zbios/zbios.asm:445):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    609      634    
+
+symbol SC_HANDLER (=82A, /home/playground/src/z8k/zbios/zbios.asm:650):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    134    
+
+symbol SC_HANDLER.DONE (=86C, /home/playground/src/z8k/zbios/zbios.asm:677):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    670      685    
+
+symbol SC_HANDLER.NOP (=872, /home/playground/src/z8k/zbios/zbios.asm:682):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    660    
+
+symbol SC_IDENT (=4, /home/playground/src/z8k/zbios/zbios.asm:444):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    656    
+
+symbol SC_JUMPTABLE (=87A, /home/playground/src/z8k/zbios/zbios.asm:694):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    663      705( 2)
+
+symbol SC_JUMPTABLE1 (=87C, /home/playground/src/z8k/zbios/zbios.asm:696):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    705    
+
+symbol SC_JUMPTABLE_ENTRIES (=9, /home/playground/src/z8k/zbios/zbios.asm:705):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    659    
+
+symbol SC_PCOFF (=0A, /home/playground/src/z8k/zbios/zbios.asm:447):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    467      469    
+ AS V1.42 Beta [Bld 200] - Source File zbios.asm - Page 31 - 05/24/21 12:51:08
+
+
+
+symbol SC_PCSEG (=8, /home/playground/src/z8k/zbios/zbios.asm:446):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    613      638    
+
+symbol SC_STACKPARA (=4, /home/playground/src/z8k/zbios/zbios.asm:443):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    444      445      446      447    
+
+symbol SC_TERMIN (=736, /home/playground/src/z8k/zbios/zbios.asm:494):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    698    
+
+symbol SC_TERMINNOWAIT (=730, /home/playground/src/z8k/zbios/zbios.asm:488):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    699    
+
+symbol SC_TERMINSTAT (=7B2, /home/playground/src/z8k/zbios/zbios.asm:575):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    703    
+
+symbol SC_TERMIN_ (=73A, /home/playground/src/z8k/zbios/zbios.asm:497):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    490    
+
+symbol SC_TERMOUT (=764, /home/playground/src/z8k/zbios/zbios.asm:526):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    700    
+
+symbol SC_TERMOUTNOWAIT (=75E, /home/playground/src/z8k/zbios/zbios.asm:520):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    701    
+
+symbol SC_TERMOUTSTAT (=7C8, /home/playground/src/z8k/zbios/zbios.asm:588):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    704    
+
+symbol SC_TERMOUT_ (=768, /home/playground/src/z8k/zbios/zbios.asm:529):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    522    
+
+symbol SC_TERMREADLINE (=78C, /home/playground/src/z8k/zbios/zbios.asm:552):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    702    
+
+symbol SEG_HANDLER (=664, /home/playground/src/z8k/zbios/zbios.asm:349):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    139    
+
+symbol SP (=RR14, /home/playground/src/z8k/zbios/zbios.asm:10):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    175      176      185      190      191      200      260      273    
+    275      277      306      309      311      380      387      394    
+    412      471      472      652      653      654      672      673    
+    678      679    
+
+symbol SPOFF (=R15, /home/playground/src/z8k/zbios/zbios.asm:12):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    313      314      470    
+
+ AS V1.42 Beta [Bld 200] - Source File zbios.asm - Page 32 - 05/24/21 12:51:08
+
+
+symbol SYSSTACK_BOTTOM (=88C, /home/playground/src/z8k/zbios/zbios.asm:712):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    374    
+
+symbol SYSSTACK_TOP (=0FFE, /home/playground/src/z8k/zbios/zbios.asm:717):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    260      377    
+
+symbol TEMPOFF (=R7, /home/playground/src/z8k/zbios/zbios.asm:440):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    467      468      469      489      495      506      521      527    
+    538      609      610      634      635      656      657      658    
+    659      662      663( 2)  667      668      669    
+
+symbol TEMPPTR (=RR6, /home/playground/src/z8k/zbios/zbios.asm:441):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    471      616      618      641      642      654      665      672    
+    678    
+
+symbol TEMPSEG (=R6, /home/playground/src/z8k/zbios/zbios.asm:439):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    655    
+
+symbol TRAP_CODE (=36, /home/playground/src/z8k/zbios/zbios.asm:67):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    292      317      342      346      350      359      363      392    
+    417      422      457      464      674    
+
+symbol TRAP_EXIT (=8, /home/playground/src/z8k/zbios/zbios.asm:31):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    308      334    
+
+symbol TRAP_FCW (=0A, /home/playground/src/z8k/zbios/zbios.asm:33):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    310    
+
+symbol TRAP_HANDLER (=5EC, /home/playground/src/z8k/zbios/zbios.asm:299):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    343      347      351      360      364      395      418      423    
+    473      675    
+
+symbol TRAP_HANDLER.HALT (=63C, /home/playground/src/z8k/zbios/zbios.asm:326):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    330    
+
+symbol TRAP_PC (=0C, /home/playground/src/z8k/zbios/zbios.asm:34):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    312    
+
+symbol TRAP_REASON (=34, /home/playground/src/z8k/zbios/zbios.asm:66):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    307    
+
+symbol VI_HANDLER (=674, /home/playground/src/z8k/zbios/zbios.asm:362):
+ file /home/playground/src/z8k/zbios/zbios.asm :
+    155(128)
+
+
+
+0.03 seconds assembly time
+ AS V1.42 Beta [Bld 200] - Source File zbios.asm - Page 33 - 05/24/21 12:51:08
+
+
+
+    863 lines source file
+    991 lines incl. macro expansions
+      2 passes
+      0 errors
+      0 warnings

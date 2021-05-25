@@ -1,0 +1,16 @@
+asm = Builder(action = 'asl -gnuerrors -werror -i /usr/local/include/asl/ -C -L -s -u -xx -o $TARGET $SOURCE', suffix='.p', src_suffix='.asm')
+hex = Builder(action = 'p2hex $SOURCE $TARGET', suffix='.hex', src_suffix='.p')
+bin = Builder(action = 'p2bin $SOURCE $TARGET', suffix='.bin', src_suffix='.p')
+
+env = Environment(BUILDERS = {'Asm': asm, 'Hex': hex, 'Bin': bin})
+
+p=env.Asm('zbios')
+z=env.Hex('zbios')
+q=env.Asm('tests')
+t=env.Hex('tests')
+
+env.Depends(p, Glob('*.inc'))
+env.Depends(q, Glob('*.inc'))
+env.Clean(z, [Glob ('*~'), Glob ('*.lst')])
+env.Clean(t, [Glob ('*~'), Glob ('*.lst')])
+env.Default(z, t)
